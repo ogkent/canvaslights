@@ -1,0 +1,198 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>Canvas Lights!</title>
+<style type="text/css">
+html { margin: 0; padding: 0; }
+body { background: #000; margin: 0; padding: 0; font-family: sans-serif; color: white; overflow: hidden; }
+#paused { 
+	font-size: 1.3em;  
+	position: absolute;
+	width: 400px;
+	text-align: center;
+	line-height: 2em;
+	text-shadow: 2px 2px 5px #333;
+	background: rgba(120,120,120,0.6);
+	color: #ccc;
+	margin: -33px 0 0 -200px;
+	top: 45%;
+	left: 50%;
+}
+#paused span { font-weight: bold; font-size: 1.3em; }
+</style>
+
+<script type="text/javascript">
+
+var canvas;
+var context;
+var lights = [];
+var timer;
+var center = { x: 0, y: 0 };
+var numberOfLights = 200;
+var liteMode = false;
+
+var colors = [
+	{ r : "255", g : "0",   b : "0"   },	// red
+	{ r : "255", g : "129", b : "0"   },	// orange
+	{ r : "255", g : "229", b : "0"   },	// yellow
+	{ r : "255", g : "97",  b : "200" },	// pink
+	{ r : "0",   g : "180", b : "0"   },	// green
+	{ r : "0",   g : "111", b : "255" }		// blue
+];
+
+function generateLight()
+{
+	var l = {};
+	l.flicker = Math.random() < 0.5;
+	l.alpha = 0.6;
+	l.fading = 0;
+	l.color = colors[Math.round(Math.random() * (colors.length - 1))];
+	l.positionX = Math.random() * canvas.width;	// use polar coordinates?
+	l.positionY = Math.random() * canvas.height;
+	l.slopeX = (l.positionX - center.x) / 500;
+	l.slopeY = (l.positionY - center.y) / 500;
+	l.size = Math.random() < 0.2 ? 20 : (Math.round(Math.random() * 5) + 15);
+	l.created = new Date();
+	return l;
+}
+
+function drawLight(context, l)
+{ 
+	context.beginPath();
+	context.arc(0, 0, l.size, 0, Math.PI*2, true);
+	
+	// it's been around too long (2 min), fade to nothing
+	if (new Date() - l.created > 1000 * 2 * 60)
+		l.fading = -2;
+	
+	if (l.fading === -2)
+	{
+		l.alpha -= 0.05;
+	}
+	else if (l.fading < 0)
+	{
+		if (l.alpha > 0.3)
+			l.alpha -= 0.05;
+		else
+			l.fading = 1;
+	}
+	else if (l.fading > 0)
+	{
+		if (l.alpha < 0.6)
+			l.alpha += 0.05;
+		else
+			l.fading = 0;
+	}
+	
+	if (l.flicker && l.fading == 0 && (Math.random() < 0.2))
+		l.fading = -1;
+
+	context.fillStyle = "rgba(" + l.color.r + "," + l.color.g + "," + l.color.b + "," + l.alpha + ")";
+	context.shadowColor = "rgba(" + l.color.r + "," + l.color.g + "," + l.color.b + ",1.0)";
+	context.shadowBlur = liteMode ? 3 : 20;
+	
+	context.closePath();
+	context.fill();
+}
+
+function init()
+{
+	canvas = document.getElementById("canvas");
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	
+	center.x = canvas.width / 2;
+	center.y = canvas.height / 2;
+	
+	context = canvas.getContext("2d");
+	context.globalCompositeOperation = "lighter";
+	
+	for (var i = 0; i < numberOfLights; i++)
+		lights.push(generateLight());
+	
+	canvas.onclick = pausePlay;
+	pausePlay();
+}
+
+function draw()
+{
+	context.clearRect(0, 0, canvas.width, canvas.height);
+
+	var count = liteMode ? 100 : lights.length;
+	for (var i = 0; i < count; i++)
+	{
+		var l = lights[i];
+		
+		if (l.alpha < 0.1 || l.positionX < 0 || l.positionX > canvas.width || l.positionY < 0 || l.positionY > canvas.height)
+		{
+			l = generateLight();
+			l.alpha = 0.3;
+			l.fading = 1;
+			lights[i] = l;
+		}
+		
+		context.save();
+		context.translate(l.positionX, lights[i].positionY);
+		drawLight(context, lights[i]);
+		context.restore();
+		
+		lights[i].positionX += lights[i].slopeX;
+		lights[i].positionY += lights[i].slopeY;
+	}
+}
+
+function pausePlay()
+{
+	if (timer)
+	{
+		document.getElementById("paused").style.display = "block";
+		clearInterval(timer);
+		timer = null;
+	}
+	else
+	{
+		document.getElementById("paused").style.display = "none";
+		timer = setInterval(draw, 50);
+	}
+}
+
+function resize()
+{
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	center.x = canvas.width / 2;
+	center.y = canvas.height / 2;
+}
+
+window.onload=function(e){init();};
+window.onresize=resize;
+document.onkeydown=function(e)
+{
+	if(e.keyCode === 32) { pausePlay(); return false; }
+	else if (e.keyCode === 70) { liteMode = !liteMode; return false; }
+};
+</script>
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-79933-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 
+        'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+
+</script>
+</head>
+
+<body>
+<div id="paused" style="display: none;"><span>Paused</span><br/>Slow? Press F to toggle fast-mode.</div>
+<canvas id="canvas" width="0" height="0">No canvas support. Download the most recent version of Chrome, Safari, or Firefox.</canvas>
+</body>
+
+</html>
